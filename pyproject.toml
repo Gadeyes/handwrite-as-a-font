@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hwfont"
+version = "0.0.1"
+description = "Turn a page of handwriting into an installable font"
+requires-python = ">=3.11"
+dependencies = [
+    "fonttools",
+    "numpy",
+    "opencv-python>=4.7",  # 4.7 moved the ArUco marker code into the main package
+    "pillow",
+    "potracer",
+    "reportlab",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pypdfium2",  # renders the template PDF back to pixels in the tests
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

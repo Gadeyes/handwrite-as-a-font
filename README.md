@@ -4,7 +4,7 @@ Turn a few pages of your handwriting into an installable `.otf` font that works 
 
 What makes it different from template-based font tools: each letter gets 3–5 natural variants that rotate automatically as you type, so repeated letters don't look copy-pasted.
 
-**Status:** Phase 0, just starting. Nothing is built yet.
+**Status:** Phase 0. The spike works (one handwritten letter → installable font, see `spike/spike.py`); the real modules are not built yet.
 
 ## Roadmap
 
@@ -43,23 +43,28 @@ python -m venv .venv
   (if blocked, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once)
 - macOS / Linux: `source .venv/bin/activate`
 
-**4. Install the Phase 0 libraries**
+**4. Install the package and its libraries**
 
 ```
-pip install opencv-python pillow fonttools numpy pytest potracer
+pip install -e ".[dev]"
 ```
 
 If downloads are slow, add `-i https://pypi.tuna.tsinghua.edu.cn/simple`.
 
-Once `pyproject.toml` exists, this step becomes `pip install -e .`.
+**5. Check it works**
+
+```
+pytest
+python -m hwfont.template        # writes data/template.pdf: print it, fill it in
+```
 
 ## Phase 0 tasks
 
 Do the spike first. It is a throwaway script whose job is to expose the surprises (upside-down letters, filled-in holes, font caching) before we design anything.
 
-- [ ] **Spike:** one handwritten "a" → threshold → trace → `.otf` → typed in Word. Both of us should do this once.
-- [ ] `layout.py`: page size, cell grid, character list. The template generator and the slicer both read this, so agree on it together.
-- [ ] `template.py`: layout → printable PDF with corner markers and grey guide lines
+- [x] **Spike:** one handwritten "a" → threshold → trace → `.otf` → typed in Word. Both of us should do this once.
+- [x] `layout.py`: page size, cell grid, character list. The template generator and the slicer both read this.
+- [x] `template.py`: layout → printable PDF with corner markers and grey guide lines
 - [ ] `scan.py`: find the markers, straighten the page, binarise
 - [ ] `slice.py`: cut the page into one bitmap per cell, flag empty or overflowing cells
 - [ ] `vectorize.py`: bitmap → Bézier outlines
