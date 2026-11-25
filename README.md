@@ -56,6 +56,7 @@ If downloads are slow, add `-i https://pypi.tuna.tsinghua.edu.cn/simple`.
 ```
 pytest
 python -m hwfont.template        # writes data/template.pdf: print it, fill it in
+python -m hwfont.scan photo.jpg  # straightens a photo of a filled page into data/scan/
 ```
 
 ## Phase 0 tasks
@@ -65,13 +66,14 @@ Do the spike first. It is a throwaway script whose job is to expose the surprise
 - [x] **Spike:** one handwritten "a" → threshold → trace → `.otf` → typed in Word. Both of us should do this once.
 - [x] `layout.py`: page size, cell grid, character list. The template generator and the slicer both read this.
 - [x] `template.py`: layout → printable PDF with corner markers and grey guide lines
-- [ ] `scan.py`: find the markers, straighten the page, binarise
-- [ ] `slice.py`: cut the page into one bitmap per cell, flag empty or overflowing cells
-- [ ] `vectorize.py`: bitmap → Bézier outlines
-- [ ] `build.py`: outlines + metrics → `.otf`
-- [ ] `render.py`: font + text → image (used by tests now, by evaluation later)
+- [x] `scan.py`: find the markers, straighten the page, binarise (tested on fake photos; needs a real one)
+- [x] `slice.py`: cut the page into one bitmap per cell, flag empty or overflowing cells
+- [x] `vectorize.py`: bitmap → Bézier outlines
+- [x] `build.py`: outlines + metrics → `.otf`
+- [x] `render.py`: font + text → image (used by tests now, by evaluation later)
 - [ ] `cli.py`: `hwfont template` and `hwfont build`
-- [ ] Tests: synthetic round trip (template → fake scan → font)
+- [x] Tests: synthetic round trip (template → fake scan → font)
+- [ ] A real filled-in sheet, photographed, through the whole pipeline and typed in Word
 - [ ] Tag `phase-0` and record a short demo
 
 A workable split once `layout.py` is agreed: one person takes the paper side (`template`, `scan`, `slice`), the other takes the font side (`vectorize`, `build`, `render`). The hand-off between the two halves is a folder of labelled glyph bitmaps.
