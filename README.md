@@ -1,145 +1,174 @@
 # Handwrite as a Font
 
-Turn a few pages of your handwriting into an installable `.otf` font that works in Word, Figma, and any other app.
+Turn your handwriting into a real, installable font (`.otf`) that you can type with in Word, Google Docs (desktop), Figma, or any other app.
 
-What makes it different from template-based font tools: each letter gets 3–5 natural variants that rotate automatically as you type, so repeated letters don't look copy-pasted.
+You print a 3-page template, fill it in with a pen, take a photo of each page, and run one command. Everything runs on your own computer, and your photos are never uploaded anywhere.
 
-**Status:** Phase 0. The spike works (one handwritten letter → installable font, see `spike/spike.py`); the real modules are not built yet.
+> **Status: early.** The full pipeline works and is covered by automated tests, but it has only been tried on a small number of real photos. Expect rough edges, and please open an issue if a photo of yours doesn't work.
 
-## Roadmap
+## What you need
 
-Every phase ends with something usable. Estimates assume about 10 hours a week.
+- A computer with **Python 3.11 or newer** (Windows, macOS or Linux)
+- A printer, or a tablet with a stylus that can write on a PDF
+- A black or dark-blue pen
+- A phone camera or a scanner
 
-| Phase | Weeks | What we build | Result |
-|---|---|---|---|
-| 0 | 1–2 | Print template → write → scan → slice → vectorise → export | An installable font |
-| 1 | 3–6 | Variants per letter (pretrained few-shot model, or simple deformation) + OpenType rotation | A natural-looking font |
-| 2 | 7 | OCR character error rate (TrOCR) + blind test, logged to CSV | Numbers we can quote |
-| 3 | 8–9 | "Font doctor": an LLM tool-calling loop that fixes low-scoring letters | Self-repairing pipeline |
-| 4 | 10–11 | FastAPI + SQLite + one HTML page, Docker, GPU server | Public demo |
+## Install
 
-Natural stopping points: after Phase 0 (a font for ourselves), after Phase 2 (model + evaluation data), after Phase 4 (full project).
-
-## Getting started
-
-You need Python 3.11 or newer and Git.
-
-**1. Install Python** (skip if `python --version` already works)
+**1. Install Python** (skip this if `python --version` already prints 3.11 or higher)
 
 - Windows: `winget install Python.Python.3.12`, then open a new terminal
 - macOS: `brew install python@3.12`
+- Linux: use your package manager, e.g. `sudo apt install python3 python3-venv`
 
-**2. Clone and create a virtual environment**
+**2. Download the project and set it up**
 
 ```
-git clone <repo-url>
+git clone https://github.com/Gadeyes/handwrite-as-a-font.git
 cd handwrite-as-a-font
 python -m venv .venv
 ```
 
-**3. Activate it**
+**3. Activate the virtual environment** (needed in every new terminal)
 
 - Windows PowerShell: `.venv\Scripts\Activate.ps1`
-  (if blocked, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once)
+  (if it says scripts are disabled, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, then try again)
 - macOS / Linux: `source .venv/bin/activate`
 
-**4. Install the package and its libraries**
+Your prompt now starts with `(.venv)`.
+
+**4. Install**
+
+```
+pip install -e .
+```
+
+Check it worked with `hwfont --help`.
+
+## Make your font
+
+### 1. Print the template
+
+```
+hwfont template
+```
+
+This writes `data/template.pdf`: 3 A4 pages with boxes for 80 characters (a–z, A–Z, 0–9 and common punctuation), three boxes each, plus a few lines for a sample sentence. Print it at actual size. On US Letter paper, choose "Fit to page".
+
+### 2. Fill it in
+
+- Write one character in each box, the character printed above it. Fill all three boxes of each character; small differences between them are fine.
+- Rest letters on the **blue line**. Tails of g, j, p, q and y go below it.
+- Stay inside the box. Writing that touches the edge is flagged, and that box is skipped.
+- Don't write on or near the **black corner squares**. They are how the program finds and straightens the page.
+- The grey guide lines disappear when the page is read, so don't worry about writing over them.
+
+### 3. Photograph or scan each page
+
+Any of these work:
+
+- **A phone photo of each page:** lay the page flat, use even light, hold the phone straight above it, and make sure **all four corner squares are in the picture**. The angle doesn't need to be perfect.
+- **A scanner app** (iPhone Notes "Scan Documents", Google Drive scan, and similar) that saves all pages as one PDF.
+- **A tablet:** write directly on `template.pdf` with a stylus and export it as a PDF.
+
+Accepted formats: JPG, PNG and PDF (every page in a PDF is read). iPhone HEIC photos must be converted first; set **Settings → Camera → Formats → Most Compatible** to get JPGs.
+
+Copy the files to a `data/photos/` folder inside the project. The `data/` folder is never committed to Git.
+
+### 4. Build the font
+
+```
+hwfont build data/photos
+```
+
+The pages can be in any order and any way up, because each page identifies itself by its corner squares. The command prints what it found:
+
+```
+pages found: 1, 2, 3
+  ! 'b' sample 3: writing touches the box edge
+font:    data/fonts/My-Handwriting-1125-1430.otf   (family name in Word: 'My Handwriting 1125-1430')
+preview: data/fonts/My-Handwriting-1125-1430-preview.png
+```
+
+Lines starting with `!` are problems worth a look. A box with a problem is skipped and another sample of that character is used instead. Open the preview image to see every character before installing.
+
+Useful options:
+
+```
+hwfont build data/photos --name "My Hand"       # choose the font name
+hwfont build data/photos --cuts data/cuts       # also save every cut-out box as an image
+hwfont build page1.jpg page2.jpg page3.jpg      # or list the files yourself
+hwfont build scan.pdf
+```
+
+### 5. Install and use it
+
+- **Windows:** double-click the `.otf` file → **Install**
+- **macOS:** double-click the `.otf` file → **Install Font**
+- **Linux:** copy it to `~/.local/share/fonts/`
+
+Restart Word (or whichever app you use), then pick the font by the name the command printed.
+
+## Troubleshooting
+
+| Message or symptom | What to do |
+|---|---|
+| `hwfont` is not recognized / command not found | Activate the virtual environment (install step 3). |
+| `no corner squares found` | The photo doesn't show the page clearly. Retake it with all four black squares in view. |
+| `only 2 of the 4 corner squares … are visible` | A square is cut off, covered or in shadow. Retake the photo. |
+| `the page doesn't look flat` | Flatten the paper (e.g. under a book) and retake the photo. |
+| `photograph one page at a time` | Two pages appear in one photo. Take one photo per page. |
+| `no photo of page 2` | That page is missing, or it couldn't be read; see the other messages. |
+| `iPhone HEIC photos can't be read yet` | Convert to JPG, or change the camera setting above. |
+| `not in the font: …` | Every box for those characters was empty or flagged. Rewrite them on a fresh template page, photograph that page again, and rebuild. |
+| Word shows an old version of your font | Word caches fonts by name. Every build gets a new dated name by default, so pick the newest one. If you use `--name`, change the name between builds. |
+| Letters look broken or have holes filled in | Use a darker pen, better light, or a scanner app. Look at the `--cuts` images to see what the program saw. |
+
+To look at a single stage:
+
+```
+python -m hwfont.scan photo.jpg              # the straightened page, saved in data/scan/
+python -m hwfont.render font.otf "Hello"     # render text with a font into an image
+```
+
+## Limits
+
+- **Print-style handwriting.** Joined-up cursive can't be split into single letters reliably.
+- **Latin letters, digits and basic punctuation** only: the 80 characters on the template. No accents yet.
+- Each character is currently one fixed shape. Repeated letters look identical.
+- No signatures. The template has no signature box, and the font only contains template characters.
+
+## Roadmap
+
+- **Variants:** use the three samples you wrote (plus generated ones) so repeated letters rotate between shapes as you type, like real handwriting.
+- **Quality check:** score each letter automatically and flag ones that read badly.
+- **Website:** upload photos in a browser instead of using the command line.
+
+## How it works
+
+```
+template (PDF) → your photos → find corner squares and straighten → black-and-white
+→ cut out each box → trace outlines as curves → build the .otf font → preview image
+```
+
+| Module | Job |
+|---|---|
+| `layout.py` | Where every box is on the page; shared by the template and the reader |
+| `template.py` | Draws the printable PDF |
+| `scan.py` | Finds the corner squares (ArUco markers) and straightens the photo |
+| `slice.py` | Cuts the page into one image per box and flags empty or overflowing boxes |
+| `vectorize.py` | Traces each letter into curves and scales everything to one size |
+| `build.py` | Builds the font file with FontTools |
+| `render.py` | Draws text with the font, for the preview and the tests |
+| `pipeline.py` / `cli.py` | Runs the whole chain; the `hwfont` command |
+
+Built with [OpenCV](https://opencv.org/), [Potrace](https://potrace.sourceforge.net/) (via potracer), [FontTools](https://github.com/fonttools/fonttools), [ReportLab](https://www.reportlab.com/) and [pypdfium2](https://github.com/pypdfium2-team/pypdfium2).
+
+## Development
 
 ```
 pip install -e ".[dev]"
-```
-
-If downloads are slow, add `-i https://pypi.tuna.tsinghua.edu.cn/simple`.
-
-**5. Check it works**
-
-```
 pytest
 ```
 
-## Making a font
-
-```
-hwfont template                                  # writes data/template.pdf
-```
-
-Print it, fill in every box with a black or dark-blue pen, and photograph each page lying flat with all four black squares visible. Then:
-
-```
-hwfont build page1.jpg page2.jpg page3.jpg       # writes data/fonts/<name>.otf + a preview
-hwfont build *.jpg --name "My Hand" --cuts data/cuts   # pick the name; save every cut-out box to inspect
-```
-
-Photos can be in any order and any way up. Every build gets a new dated name by default, because Word keeps showing an old copy of a font it has seen under the same name. Double-click the `.otf` to install it, then pick it in Word.
-
-Debugging single stages: `python -m hwfont.scan photo.jpg` (straightened page into `data/scan/`), `python -m hwfont.render font.otf "text"`.
-
-## Phase 0 tasks
-
-Do the spike first. It is a throwaway script whose job is to expose the surprises (upside-down letters, filled-in holes, font caching) before we design anything.
-
-- [x] **Spike:** one handwritten "a" → threshold → trace → `.otf` → typed in Word. Both of us should do this once.
-- [x] `layout.py`: page size, cell grid, character list. The template generator and the slicer both read this.
-- [x] `template.py`: layout → printable PDF with corner markers and grey guide lines
-- [x] `scan.py`: find the markers, straighten the page, binarise (tested on fake photos; needs a real one)
-- [x] `slice.py`: cut the page into one bitmap per cell, flag empty or overflowing cells
-- [x] `vectorize.py`: bitmap → Bézier outlines
-- [x] `build.py`: outlines + metrics → `.otf`
-- [x] `render.py`: font + text → image (used by tests now, by evaluation later)
-- [x] `cli.py`: `hwfont template` and `hwfont build` (the chain itself is `pipeline.make_font`, shared with the future website)
-- [x] Tests: synthetic round trip (template → fake scan → font)
-- [ ] A real filled-in sheet, photographed, through the whole pipeline and typed in Word
-- [ ] Tag `phase-0` and record a short demo
-
-A workable split once `layout.py` is agreed: one person takes the paper side (`template`, `scan`, `slice`), the other takes the font side (`vectorize`, `build`, `render`). The hand-off between the two halves is a folder of labelled glyph bitmaps.
-
-**Phase 0 is done when** a real scan produces a font that installs and types legibly in Word, with the tails of g, p and y below the baseline.
-
-## Planned layout
-
-```
-pyproject.toml
-README.md
-docs/decisions.md     decision log
-src/hwfont/           the modules listed above
-tests/
-data/                 scans, crops, built fonts (not committed)
-```
-
-## Template design
-
-Four choices that are cheap now and costly to change later:
-
-- **Three samples of every character.** They give us real variants before any model exists, and real samples for the blind test.
-- **A few handwritten lines** (a pangram). The pretrained handwriting models expect word-level style references.
-- **Corner markers (ArUco)** so a phone photo can be straightened reliably.
-- **Light grey baseline and x-height guides** in every cell. They disappear when the scan is binarised, and they tell us where the baseline is.
-
-## How we work
-
-- **By hand first, then automate.** Run each stage manually once before writing the code for it.
-- **One tool per job.** Python, OpenCV, Potrace, FontTools, PyTorch, FastAPI, SQLite. No React, Redis, Celery, PostgreSQL, YOLO or agent frameworks until a real bottleneck appears.
-- **Decision log.** Each time we pick or reject a tool, add one line with the reason to `docs/decisions.md`.
-- **Branches.** Work on a branch per task, merge to `main` through a pull request the other person reads.
-- **Tags.** Tag the end of each phase (`phase-0`, `phase-1`, …) and record a short demo.
-- **No personal scans in Git.** Handwriting samples stay in `data/`, which is ignored.
-
-## Scope and limits
-
-- Print-style handwriting only. Joined-up cursive can't be split into single letters reliably.
-- Latin letters, digits and basic punctuation.
-- **No signatures.** The template has no signature cell and the system only produces template characters.
-- When the hosted version exists, uploaded images are deleted on a schedule after the job finishes.
-
-## Tech stack
-
-| Need | Tool |
-|---|---|
-| Image processing | OpenCV, Potrace |
-| Font export | FontTools |
-| Variant generation | PyTorch + One-DM or DiffusionPen pretrained weights |
-| Evaluation | TrOCR, pytest |
-| Font doctor | One multimodal LLM API, official SDK |
-| Backend | FastAPI, SQLite |
-| Frontend | One HTML page |
-| Deployment | Docker, hourly GPU server |
+The tests don't need real handwriting: they render the template, draw fake letters into it, warp it like a phone photo, and check that a working font comes out.
