@@ -4,3 +4,7 @@ __pycache__/
 *.otf
 *.egg-info/
 .pytest_cache/
+
+# private notes: planning README and decision log stay on this computer
+private/
+docs/decisions.md

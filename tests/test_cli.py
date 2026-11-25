@@ -47,6 +47,37 @@ def test_build_makes_a_font_and_reports_what_is_missing(photos, capsys):
     assert (tmp / "cuts" / "u0061_a_0.png").exists()
 
 
+def test_a_multi_page_pdf_scan_works(photos, capsys):
+    """Like a phone scanner app: both pages saved into one PDF."""
+    from PIL import Image
+    tmp, paths, _ = photos
+    first, *rest = [Image.open(p).convert("RGB") for p in paths]
+    pdf = tmp / "scanned.pdf"
+    first.save(pdf, save_all=True, append_images=rest, resolution=150)
+    assert main(["build", str(pdf), "-o", str(tmp / "from-pdf")]) == 0
+    assert "pages found: 1, 2" in capsys.readouterr().out
+
+
+def test_folders_and_wildcards_expand_without_a_shell(photos, tmp_path):
+    from hwfont.cli import expand_photos
+    tmp, paths, blank = photos
+    (tmp / "notes.txt").write_text("not a photo")
+    found = set(expand_photos([tmp]))
+    assert {*paths, blank} <= found and tmp / "notes.txt" not in found
+    assert set(expand_photos([tmp / "IMG_*.jpg"])) == set(paths)
+
+
+def test_missing_and_unreadable_files_are_reported_not_crashed(photos, capsys):
+    tmp, paths, _ = photos
+    (tmp / "photo.heic").write_bytes(b"not really")
+    code = main(["build", str(tmp / "nope.jpg"), str(tmp / "photo.heic"), str(paths[0]),
+                 "-o", str(tmp / "mixed")])
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert "nope.jpg: file not found" in printed
+    assert "photo.heic: iPhone HEIC" in printed
+
+
 def test_build_with_nothing_usable_fails_cleanly(photos, capsys):
     tmp, _, blank = photos
     assert main(["build", str(blank), "-o", str(tmp / "none")]) == 1

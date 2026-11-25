@@ -10,7 +10,7 @@ from pathlib import Path
 from hwfont import layout as L
 from hwfont.build import build_font
 from hwfont.render import charset_text, render
-from hwfont.scan import ScanError, load_image, scan
+from hwfont.scan import ScanError, load_images, scan
 from hwfont.slice import Cut, report, save_cuts, slice_page
 from hwfont.vectorize import vectorize
 
@@ -33,13 +33,19 @@ def make_font(photos: list[Path], family: str, out_dir: Path, cuts_dir: Path | N
 
     for photo in photos:
         try:
-            scanned = scan(load_image(photo), pages)
+            images = load_images(photo)
         except ScanError as e:
             result.problems.append(f"{photo.name}: {e}")
             continue
-        if scanned.index in cuts_by_page:
-            result.problems.append(f"{photo.name}: page {scanned.index + 1} again; using this photo instead")
-        cuts_by_page[scanned.index] = slice_page(scanned, pages)
+        for name, image in images:
+            try:
+                scanned = scan(image, pages)
+            except ScanError as e:
+                result.problems.append(f"{name}: {e}")
+                continue
+            if scanned.index in cuts_by_page:
+                result.problems.append(f"{name}: page {scanned.index + 1} again; using this one instead")
+            cuts_by_page[scanned.index] = slice_page(scanned, pages)
 
     result.pages_found = sorted(i + 1 for i in cuts_by_page)
     missing_pages = [i + 1 for i in range(len(pages)) if i not in cuts_by_page]

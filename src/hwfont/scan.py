@@ -44,11 +44,44 @@ def page_size_px() -> tuple[int, int]:
 def load_image(path: Path) -> np.ndarray:
     """Read a photo as BGR. np.fromfile + imdecode also copes with non-ASCII
     Windows paths, which cv2.imread cannot open."""
+    if not path.is_file():
+        raise ScanError("file not found")
+    if path.suffix.lower() in (".heic", ".heif"):
+        raise ScanError("iPhone HEIC photos can't be read yet: send it as JPG, or set "
+                        "Settings > Camera > Formats > Most Compatible")
     data = np.fromfile(str(path), dtype=np.uint8)
     image = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if image is None:
-        raise ScanError(f"cannot read image: {path}")
+        raise ScanError("not an image this program can read (use JPG or PNG)")
     return image
+
+
+PDF_DPI = 300  # comfortably above PX_PER_MM, so straightening never upscales
+
+
+def load_images(path: Path) -> list[tuple[str, np.ndarray]]:
+    """(name, BGR image) for each page in the file: one for a photo, one per page for a PDF.
+
+    PDFs come from phone scanner apps, or from filling the template in on a
+    tablet; pen annotations are drawn into the page image.
+    """
+    if path.suffix.lower() != ".pdf":
+        return [(path.name, load_image(path))]
+    if not path.is_file():
+        raise ScanError("file not found")
+    import pypdfium2 as pdfium  # only needed for PDFs
+
+    try:
+        pdf = pdfium.PdfDocument(str(path))
+    except pdfium.PdfiumError as e:
+        raise ScanError(f"not a PDF this program can read ({e})") from e
+    images = []
+    for i in range(len(pdf)):
+        bitmap = pdf[i].render(scale=PDF_DPI / 72, may_draw_forms=True)
+        rgb = np.array(bitmap.to_pil().convert("RGB"))
+        images.append((f"{path.name} page {i + 1}", cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)))
+    pdf.close()
+    return images
 
 
 def _detector() -> cv2.aruco.ArucoDetector:
