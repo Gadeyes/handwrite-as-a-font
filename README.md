@@ -55,9 +55,24 @@ If downloads are slow, add `-i https://pypi.tuna.tsinghua.edu.cn/simple`.
 
 ```
 pytest
-python -m hwfont.template        # writes data/template.pdf: print it, fill it in
-python -m hwfont.scan photo.jpg  # straightens a photo of a filled page into data/scan/
 ```
+
+## Making a font
+
+```
+hwfont template                                  # writes data/template.pdf
+```
+
+Print it, fill in every box with a black or dark-blue pen, and photograph each page lying flat with all four black squares visible. Then:
+
+```
+hwfont build page1.jpg page2.jpg page3.jpg       # writes data/fonts/<name>.otf + a preview
+hwfont build *.jpg --name "My Hand" --cuts data/cuts   # pick the name; save every cut-out box to inspect
+```
+
+Photos can be in any order and any way up. Every build gets a new dated name by default, because Word keeps showing an old copy of a font it has seen under the same name. Double-click the `.otf` to install it, then pick it in Word.
+
+Debugging single stages: `python -m hwfont.scan photo.jpg` (straightened page into `data/scan/`), `python -m hwfont.render font.otf "text"`.
 
 ## Phase 0 tasks
 
@@ -71,7 +86,7 @@ Do the spike first. It is a throwaway script whose job is to expose the surprise
 - [x] `vectorize.py`: bitmap → Bézier outlines
 - [x] `build.py`: outlines + metrics → `.otf`
 - [x] `render.py`: font + text → image (used by tests now, by evaluation later)
-- [ ] `cli.py`: `hwfont template` and `hwfont build`
+- [x] `cli.py`: `hwfont template` and `hwfont build` (the chain itself is `pipeline.make_font`, shared with the future website)
 - [x] Tests: synthetic round trip (template → fake scan → font)
 - [ ] A real filled-in sheet, photographed, through the whole pipeline and typed in Word
 - [ ] Tag `phase-0` and record a short demo

@@ -45,3 +45,10 @@ One line per decision or finding: what was picked, rejected or learned, and why.
 - **Phase 0 uses one sample per character (first clean one).** The other samples become rotating alternates in Phase 1.
 - **render.py uses Pillow's basic layout.** This Pillow build has no libraqm, so it ignores OpenType features: Phase 1's rotation will need HarfBuzz (`uharfbuzz`) to show in previews and evaluation.
 - **Whole pipeline on 3 fake photos: about 4 s on a laptop**, pure-Python potracer included. Not worth optimising.
+
+## CLI (2026-11-25)
+
+- **`pipeline.make_font()` holds the chain; `cli.py` only parses arguments and prints.** The Phase 4 website will call the same function and show the same `problems` list its own way.
+- **A bad photo doesn't stop the build.** Unreadable photos, missing pages and empty boxes are reported, and the font is built from whatever is usable; only "nothing usable at all" is a failure (exit code 1).
+- **Default font name is dated (`My Handwriting 1125-1310`).** Same reason as in the spike: Word shows a cached copy of a font name it has already seen.
+- **Installed as a `hwfont` command via `[project.scripts]`, plus `python -m hwfont`.**
