@@ -13,6 +13,7 @@ dependencies = [
     "opencv-python>=4.7",  # 4.7 moved the ArUco marker code into the main package
     "pillow",
     "potracer",
+    "pypdfium2",  # reads filled-in pages saved as PDF (scanner apps, tablets)
     "reportlab",
 ]
 
@@ -22,7 +23,6 @@ hwfont = "hwfont.cli:main"
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "pypdfium2",  # renders the template PDF back to pixels in the tests
 ]
 
 [tool.setuptools.packages.find]
