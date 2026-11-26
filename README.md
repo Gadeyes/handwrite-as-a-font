@@ -109,6 +109,8 @@ hwfont build scan.pdf
 
 Restart Word (or whichever app you use), then pick the font by the name the command printed.
 
+**Natural variation.** Each character's three samples are all in the font, and they rotate as you type, so repeated letters ("hello", "banana") don't look copy-pasted. Most apps (Figma, browsers, Pages, InDesign) do this automatically. **Word turns it off by default:** select the text, open **Font → Advanced**, and tick **Use Contextual Alternates**.
+
 ## Troubleshooting
 
 | Message or symptom | What to do |
@@ -121,6 +123,7 @@ Restart Word (or whichever app you use), then pick the font by the name the comm
 | `no photo of page 2` | That page is missing, or it couldn't be read; see the other messages. |
 | `iPhone HEIC photos can't be read yet` | Convert to JPG, or change the camera setting above. |
 | `not in the font: …` | Every box for those characters was empty or flagged. Rewrite them on a fresh template page, photograph that page again, and rebuild. |
+| Repeated letters all look the same in Word | Turn on **Font → Advanced → Use Contextual Alternates** (see step 5). |
 | Word shows an old version of your font | Word caches fonts by name. Every build gets a new dated name by default, so pick the newest one. If you use `--name`, change the name between builds. |
 | Letters look broken or have holes filled in | Use a darker pen, better light, or a scanner app. Look at the `--cuts` images to see what the program saw. |
 
@@ -135,12 +138,12 @@ python -m hwfont.render font.otf "Hello"     # render text with a font into an i
 
 - **Print-style handwriting.** Joined-up cursive can't be split into single letters reliably.
 - **Latin letters, digits and basic punctuation** only: the 80 characters on the template. No accents yet.
-- Each character is currently one fixed shape. Repeated letters look identical.
+- Three shapes per character, the ones you wrote. Long runs of text repeat the same cycle.
 - No signatures. The template has no signature box, and the font only contains template characters.
 
 ## Roadmap
 
-- **Variants:** use the three samples you wrote (plus generated ones) so repeated letters rotate between shapes as you type, like real handwriting.
+- **More variants:** generate extra versions of each letter in your style, beyond the three you wrote.
 - **Quality check:** score each letter automatically and flag ones that read badly.
 - **Website:** upload photos in a browser instead of using the command line.
 
@@ -157,12 +160,12 @@ template (PDF) → your photos → find corner squares and straighten → black-
 | `template.py` | Draws the printable PDF |
 | `scan.py` | Finds the corner squares (ArUco markers) and straightens the photo |
 | `slice.py` | Cuts the page into one image per box and flags empty or overflowing boxes |
-| `vectorize.py` | Traces each letter into curves and scales everything to one size |
-| `build.py` | Builds the font file with FontTools |
-| `render.py` | Draws text with the font, for the preview and the tests |
+| `vectorize.py` | Traces each letter into curves, places it on the baseline, and evens out sizes |
+| `build.py` | Builds the font file with FontTools, including the rule that rotates the variants |
+| `render.py` | Draws text with the font the way apps do (HarfBuzz + FreeType), for the preview and the tests |
 | `pipeline.py` / `cli.py` | Runs the whole chain; the `hwfont` command |
 
-Built with [OpenCV](https://opencv.org/), [Potrace](https://potrace.sourceforge.net/) (via potracer), [FontTools](https://github.com/fonttools/fonttools), [ReportLab](https://www.reportlab.com/) and [pypdfium2](https://github.com/pypdfium2-team/pypdfium2).
+Built with [OpenCV](https://opencv.org/), [Potrace](https://potrace.sourceforge.net/) (via potracer), [FontTools](https://github.com/fonttools/fonttools), [HarfBuzz](https://harfbuzz.github.io/) (via uharfbuzz), [FreeType](https://freetype.org/) (via freetype-py), [ReportLab](https://www.reportlab.com/) and [pypdfium2](https://github.com/pypdfium2-team/pypdfium2).
 
 ## Development
 
