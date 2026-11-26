@@ -60,6 +60,21 @@ def test_specks_are_removed_but_dots_kept():
     assert not clean[10, 10] and clean[50:58, 50:58].all()
 
 
+def test_a_quick_full_stop_is_not_mistaken_for_an_empty_box():
+    from hwfont.scan import ScannedPage
+    from hwfont.slice import cut_box
+    page = L.build_layout()[1]
+    dot_box = next(b for b in page.boxes if b.text == ".")
+    a_box = page.boxes[0]
+    ink = np.zeros((round(L.PAGE_H * 12), round(L.PAGE_W * 12)), bool)
+    for box in (dot_box, a_box):
+        y, x = round((box.y + box.h / 2) * 12), round((box.x + box.w / 2) * 12)
+        ink[y:y + 5, x:x + 6] = True  # 30 px: as small as the real full stops measured
+    scanned = ScannedPage(1, None, ink, 4, 0.0, 128)
+    assert cut_box(scanned, dot_box).status == OK
+    assert cut_box(scanned, a_box).status == EMPTY  # too little for a letter: still empty
+
+
 def test_file_names_are_unique_even_on_case_insensitive_disks():
     from hwfont.slice import Cut
     stems = [file_stem(Cut(b, np.zeros((1, 1), bool), OK)) for p in L.build_layout() for b in p.boxes]

@@ -6,7 +6,7 @@ with the ink's left edge at x = 0 and the baseline at y = 0; build.py adds the
 spacing around it.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from statistics import median
 
 import numpy as np
@@ -26,10 +26,17 @@ X_HEIGHT = 480    # used for the scale only when there are no capitals to measur
 FLAT_CAPS = set("BDEFHIKLMNPRTXZ")
 # Small letters whose ink height is exactly the x-height.
 FLAT_SMALL = set("mnruvwxz")
-# Characters whose ink should rest on the baseline. Snapping them removes the
-# up-and-down drift of handwriting; anything with a tail is left as written.
-SITS_ON_BASELINE = set(L.CHARACTERS) - set("gjpqyQJ") - set(L.PUNCTUATION) | set(".!?")
-SNAP_MAX_MM = 2.0  # a bigger gap than this is probably deliberate, so leave it alone
+# Characters whose ink rests on the baseline. Their bottom edge *is* the
+# baseline, wherever in the box the writer put them.
+SITS_ON_BASELINE = set(L.CHARACTERS) - set("gjpqyQJ") - set(L.PUNCTUATION) | set(".!?:")
+# Characters with a tail can't use their bottom edge. Their top edge sits at a
+# height the writer shows elsewhere, so they hang from there instead:
+# a 'g' is placed so its top is at the writer's x-height, measured on m, n, x...
+HANGS_FROM_TOP = {
+    **dict.fromkeys("gpqy", FLAT_SMALL),
+    "j": {"i"},             # the dot to the baseline, like an 'i'
+    **dict.fromkeys("QJ", FLAT_CAPS),
+}
 
 
 @dataclass
@@ -40,9 +47,36 @@ class Glyph:
     outline: RecordingPen  # font units: ink starts at x = 0, baseline at y = 0
 
 
-def _ink_height(cut: Cut) -> int:
+def _ink_rows(cut: Cut) -> tuple[int, int]:
+    """First ink row and the row just below the last one."""
     rows = np.nonzero(cut.ink.any(axis=1))[0]
-    return int(rows[-1] + 1 - rows[0])
+    return int(rows[0]), int(rows[-1] + 1)
+
+
+def _ink_height(cut: Cut) -> int:
+    top, bottom = _ink_rows(cut)
+    return bottom - top
+
+
+@dataclass
+class Habits:
+    """Where this writer really puts things, measured from all their boxes.
+
+    Many people don't rest letters on the printed line; they float them a
+    couple of millimetres above it, or centre them in the box.
+    """
+    lift_px: float = 0.0                                 # letters rest this far above the printed line
+    heights_px: dict[str, float] = field(default_factory=dict)  # median ink height per character
+
+
+def measure_habits(cuts: list[Cut]) -> Habits:
+    usable = [c for c in cuts if c.status == OK and c.box.sample is not None]
+    lifts = [c.baseline_px - _ink_rows(c)[1] for c in usable
+             if c.box.text in SITS_ON_BASELINE and c.box.text not in L.PUNCTUATION]
+    heights: dict[str, list[int]] = {}
+    for c in usable:
+        heights.setdefault(c.box.text, []).append(_ink_height(c))
+    return Habits(median(lifts) if lifts else 0.0, {ch: median(h) for ch, h in heights.items()})
 
 
 def measure_scale(cuts: list[Cut]) -> float:
@@ -92,21 +126,27 @@ def trace(ink: np.ndarray, baseline_px: float, units_per_px: float) -> Recording
     return fixed
 
 
-def baseline_for(cut: Cut) -> float:
-    """The guide baseline, or the bottom of the ink for characters that should rest on it."""
-    if cut.box.text not in SITS_ON_BASELINE:
-        return cut.baseline_px
-    bottom = np.nonzero(cut.ink.any(axis=1))[0][-1] + 1
-    if abs(bottom - cut.baseline_px) <= SNAP_MAX_MM * PX_PER_MM:
+def baseline_for(cut: Cut, habits: Habits | None = None) -> float:
+    """Row inside the crop that becomes the font's baseline (y = 0)."""
+    habits = habits or Habits()
+    ch = cut.box.text
+    top, bottom = _ink_rows(cut)
+    if ch in SITS_ON_BASELINE:
         return float(bottom)
-    return cut.baseline_px
+    refs = [habits.heights_px[r] for r in HANGS_FROM_TOP.get(ch, ()) if r in habits.heights_px]
+    if refs:
+        return top + median(refs)
+    # Punctuation and anything without a reference: keep its height relative
+    # to the writer's letters, i.e. move it by the same lift.
+    return cut.baseline_px - habits.lift_px
 
 
 def vectorize(cuts: list[Cut]) -> list[Glyph]:
     """Trace every usable character sample, all at one shared scale."""
     units_per_px = measure_scale(cuts)
+    habits = measure_habits(cuts)
     return [
-        Glyph(c.box.text, c.box.sample, c.status == OK, trace(c.ink, baseline_for(c), units_per_px))
+        Glyph(c.box.text, c.box.sample, c.status == OK, trace(c.ink, baseline_for(c, habits), units_per_px))
         for c in cuts
         if c.usable and c.box.sample is not None
     ]
