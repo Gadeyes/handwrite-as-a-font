@@ -9,7 +9,7 @@ from pathlib import Path
 
 from hwfont import layout as L
 from hwfont.build import build_font
-from hwfont.render import charset_text, render
+from hwfont.render import render, variants_text
 from hwfont.scan import ScanError, load_images, scan
 from hwfont.slice import Cut, report, save_cuts, slice_page
 from hwfont.vectorize import vectorize
@@ -66,5 +66,5 @@ def make_font(photos: list[Path], family: str, out_dir: Path, cuts_dir: Path | N
     stem = "".join(ch if ch.isalnum() else "-" for ch in family)
     result.font = build_font(glyphs, family, out_dir / f"{stem}.otf")
     result.preview = out_dir / f"{stem}-preview.png"
-    render(result.font, charset_text() + "\n\n" + PREVIEW_TEXT, size=72, guides=True).save(result.preview)
+    render(result.font, variants_text() + "\n\n" + PREVIEW_TEXT, size=72, guides=True).save(result.preview)
     return result

@@ -6,14 +6,16 @@ with the ink's left edge at x = 0 and the baseline at y = 0; build.py adds the
 spacing around it.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from statistics import median
 
 import numpy as np
 import potrace
 from fontTools.pens.areaPen import AreaPen
+from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.recordingPen import RecordingPen
 from fontTools.pens.reverseContourPen import ReverseContourPen
+from fontTools.pens.transformPen import TransformPen
 
 from hwfont import layout as L
 from hwfont.scan import PX_PER_MM
@@ -37,6 +39,7 @@ HANGS_FROM_TOP = {
     "j": {"i"},             # the dot to the baseline, like an 'i'
     **dict.fromkeys("QJ", FLAT_CAPS),
 }
+SIZE_SPREAD = 0.10  # samples of one character may differ in height by ±10% before being resized
 
 
 @dataclass
@@ -141,12 +144,55 @@ def baseline_for(cut: Cut, habits: Habits | None = None) -> float:
     return cut.baseline_px - habits.lift_px
 
 
+def _outline_bounds(rec: RecordingPen) -> tuple[float, float, float, float]:
+    bp = BoundsPen(None)
+    rec.replay(bp)
+    return bp.bounds or (0.0, 0.0, 0.0, 0.0)
+
+
+def _anchor_y(char: str, y_min: float, y_max: float) -> float:
+    """The height that must stay put when a sample is resized."""
+    if char in SITS_ON_BASELINE:
+        return 0.0                # still on the baseline
+    if char in HANGS_FROM_TOP:
+        return y_max              # still level with the x-height; the tail changes length
+    return (y_min + y_max) / 2    # punctuation: stays at the same height
+
+
+def even_out_sizes(glyphs: list[Glyph], spread: float = SIZE_SPREAD) -> list[Glyph]:
+    """Pull samples of the same character to within ±spread of their median height.
+
+    Real samples vary a lot (one writer's three a's: 6.3, 4.6 and 5.4 mm);
+    in running text that reads as letters jumping in size. Shapes are kept,
+    only the size of outliers changes.
+    """
+    heights: dict[str, list[float]] = {}
+    for g in glyphs:
+        y_min, y_max = _outline_bounds(g.outline)[1::2]
+        heights.setdefault(g.char, []).append(y_max - y_min)
+    typical = {ch: median(hs) for ch, hs in heights.items()}
+
+    out = []
+    for g in glyphs:
+        _, y_min, _, y_max = _outline_bounds(g.outline)
+        h, mid = y_max - y_min, typical[g.char]
+        target = min(max(h, mid * (1 - spread)), mid * (1 + spread))
+        if h <= 0 or target == h:
+            out.append(g)
+            continue
+        s, ay = target / h, _anchor_y(g.char, y_min, y_max)
+        scaled = RecordingPen()
+        g.outline.replay(TransformPen(scaled, (s, 0, 0, s, 0, ay * (1 - s))))  # scale around (0, ay)
+        out.append(replace(g, outline=scaled))
+    return out
+
+
 def vectorize(cuts: list[Cut]) -> list[Glyph]:
     """Trace every usable character sample, all at one shared scale."""
     units_per_px = measure_scale(cuts)
     habits = measure_habits(cuts)
-    return [
+    return even_out_sizes([
         Glyph(c.box.text, c.box.sample, c.status == OK, trace(c.ink, baseline_for(c, habits), units_per_px))
         for c in cuts
         if c.usable and c.box.sample is not None
-    ]
+    ])

@@ -9,12 +9,14 @@ description = "Turn a page of handwriting into an installable font"
 requires-python = ">=3.11"
 dependencies = [
     "fonttools",
+    "freetype-py",  # draws glyphs for the preview
     "numpy",
     "opencv-python>=4.7",  # 4.7 moved the ArUco marker code into the main package
     "pillow",
     "potracer",
     "pypdfium2",  # reads filled-in pages saved as PDF (scanner apps, tablets)
     "reportlab",
+    "uharfbuzz",  # applies the font's OpenType rules (rotating variants) for the preview
 ]
 
 [project.scripts]
