@@ -15,8 +15,9 @@ from hwfont import layout as L
 from hwfont.scan import PX_PER_MM, ScannedPage
 
 INSET_MM = 0.5         # skip the box edge itself: leftover border and small alignment errors
-MIN_SPECK_PX = 15      # smaller ink blobs are noise (an i-dot or full stop is ~50 px or more)
-MIN_INK_PX = 40        # less than this in a whole box counts as empty
+MIN_SPECK_PX = 15      # smaller ink blobs are noise (a quick full stop can be as little as ~30 px)
+MIN_INK_PX = 40        # less than this in a whole box counts as empty...
+TINY_MARKS = set(".,'")  # ...except for marks that are naturally just a dot or a flick
 
 OK, EMPTY, OVERFLOW = "ok", "empty", "overflow"
 
@@ -56,7 +57,8 @@ def cut_box(page: ScannedPage, box: L.Box) -> Cut:
     y1 = round((box.y + box.h - INSET_MM) * PX_PER_MM)
     ink = remove_specks(page.ink[y0:y1, x0:x1])
 
-    if ink.sum() < MIN_INK_PX:
+    min_ink = MIN_SPECK_PX if box.text in TINY_MARKS else MIN_INK_PX
+    if ink.sum() < min_ink:
         status = EMPTY
     elif ink[0].any() or ink[-1].any() or ink[:, 0].any() or ink[:, -1].any():
         status = OVERFLOW
